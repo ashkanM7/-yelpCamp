@@ -1,42 +1,115 @@
-const express = require("express");
-const app = express();
-const bodyParser = require("body-parser");
+const express 	 	= require("express"),
+	  app     	 	= express(),
+	  bodyParser	= require("body-parser"),
+	  mongoose	 	= require("mongoose"),
+	  Campground    = require("./models/campground"),
+	  Comment 		= require("./models/comment"),
+	  seedDB 		= require("./seeds");
+
+
+//Connect mongoose to mongo DB
+mongoose.connect("mongodb://localhost:27017/yelp_camp",{useNewUrlParser:true});
 
 app.use(bodyParser.urlencoded({extended:true}));
-
+	
 app.set("view engine","ejs");
 
-var campgrounds = [
-		{name:" Pin D'Erable - 161 Chemin du Lac Bertrand", image:"https://i36.photobucket.com/albums/e7/romaniukcol/1_zpslyngkvc8.jpg"},
-		{name:"Oka National Park - 2020 Chemin d’Oka", image:"https://i36.photobucket.com/albums/e7/romaniukcol/2_zpshsczr0kt.jpg"},
-		{name:"Morin Heights Nature Camping - 185 Rue Bennett ", image:"https://i36.photobucket.com/albums/e7/romaniukcol/3_zps00o8pduh.jpg"},
-		{name:"Camping Laurentien - 1949 Rue Guertin ", image:"https://i36.photobucket.com/albums/e7/romaniukcol/4_zpsqmu4bgb3.jpg"},
-		{name:"Fou Du Roi - 1720 Rue Landry ", image:"https://i36.photobucket.com/albums/e7/romaniukcol/5_zpsbybignt1.jpg"},
-		{name:"Mont-Orford National Park - 3321 Chemin du Parc ", image:"https://i36.photobucket.com/albums/e7/romaniukcol/6_zpsz7uyrqum.jpg"}
-	]
+app.use(express.static(__dirname + "/public"));
+seedDB();
+
+
 
 app.get("/",(req,res)=>{
 	res.render("landing")
 })
 
+//INDEX - show all campgrounds
 app.get("/campgrounds",(req,res)=>{
+	//GET ALL CAMPGROUNDS FROM DB
+	Campground.find({},(err,allCampgrounds)=>{
+		if(err){
+			console.log(err)
+		}else{
+			res.render("campgrounds/index", {campgrounds:allCampgrounds})
+		}
+	})
 	
-	res.render("campgrounds", {campgrounds:campgrounds})
 })
 
+//CREATE - add new capmground to DB
 app.post("/campgrounds",(req, res)=>{
 	
 	// get data from form and add to compgrounds array
 	var name = req.body.name;
 	var image = req.body.image;
-	var newCampground = {name: name, image: image};
-	campgrounds.push(newCampground);
-	// redirect back to compgrounds page
-	res.redirect("/campgrounds")
+	var desc = req.body.description;
+	var newCampground = {name: name, image: image, description: desc};
+	//	create a new campground and save to DB
+	Campground.create(newCampground,(err,newlyCreated)=>{
+		if(err){
+			console.log(err)
+		}else{
+			// redirect back to compgrounds page
+			res.redirect("/campgrounds")
+		}
+	})
+	
+})
+//NEW - show form to create campground
+app.get("/campgrounds/new",(req,res)=>{
+	res.render("campgrounds/new.ejs")
+})
+//SHOW
+app.get("/campgrounds/:id", (req, res)=>{
+	//find campground with provided ID
+	Campground.findById(req.params.id).populate("comments").exec((err, foundCampground)=>{
+		if(err){
+			console.log(err)
+		}else{
+			console.log(foundCampground);
+			//render show templatewith that campground
+			res.render("campgrounds/show.ejs",{campground: foundCampground})	
+		}
+	})
+	
 })
 
-app.get("/campgrounds/new",(req,res)=>{
-	res.render("new.ejs")
+//================================
+//COMMENTS ROUTE
+//================================
+app.get("/campgrounds/:id/comments/new", (req,res)=>{
+	Campground.findById(req.params.id,(err, foundCampground)=>{
+		if(err){
+			console.log(err)
+		}else{
+			res.render("comments/new",{campground: foundCampground})
+		}
+	})
+	
+})
+
+app.post("/campgrounds/:id/comments", (req, res)=>{
+	//look up campground using id
+	Campground.findById(req.params.id , (err , campground)=>{
+		if(err){
+			console.log(err);
+			res.redirect("/campgrounds")
+		}else{
+			//create new comment
+			Comment.create(req.body.comment , (err, comment)=>{
+				if(err){
+					console.log(err)
+				}else{
+					campground.comments.push(comment);
+					campground.save();
+					res.redirect("/campgrounds/"+ campground._id)
+				}
+			})
+		}
+	})
+	//create new comment
+	//connect new comment to campground
+	//redirect campground to show page 
 })
 
 app.listen(3000, ()=>{
