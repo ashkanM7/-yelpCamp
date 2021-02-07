@@ -1,3 +1,16 @@
+RESTFULL campsite web app. Users can create their account and post thier campsite photos and comments.
+Users can also comment on other users campsite posts 
+
+
+
+
+
+
+
+
+
+
+
 RESTFULL ROUTES
 
 name 		url		  verb 			desc.
